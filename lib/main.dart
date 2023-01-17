@@ -119,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //   };
       body: jsonEncode(<String, String>{
         'email': 'RC_AM_pippo@gmail.com',
-        'password': 'pippo',
+        'password': '****',
       }),
     );
     if (responseLogin.statusCode != 200) {
