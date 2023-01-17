@@ -1,13 +1,25 @@
 import 'dart:io';
-
+import 'dart:convert';
 import 'package:flutter/material.dart' hide Route;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'mainv2.pb.dart';
-import 'ResponseData.dart';
-import 'ResponseAuth.dart';
-import 'ResponseMatchAuth.dart';
+import 'Proto/mainv2.pb.dart';
+import 'Response/ResponseData.dart';
+import 'Response/ResponseAuth.dart';
+import 'Response/ResponseMatchAuth.dart';
+
+import 'package:yaml/yaml.dart';
+
+// read from application.yml
+String _path = 'application.yml';
+File _file = File(_path);
+String _yamlString = _file.readAsStringSync();
+Map yaml = loadYaml(_yamlString);
+
+// extract info from application.yml
+String host = yaml['url']['host'];
+int portHttp = yaml['url']['port_http'];
+int portWs = yaml['url']['port_ws'];
 
 void main() => runApp(const MyApp());
 
@@ -41,7 +53,10 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _controller = TextEditingController();
   final _channel = WebSocketChannel.connect(
-    Uri.parse('ws://localhost:6678/socket'),
+    //Uri.parse('ws://localhost:6678/socket'),
+    Uri.parse('ws://$host:$portWs/socket'),
+
+    //Uri.parse('wss://match.raccoonfantasy.com/socket'),
   );
 
   @override
@@ -74,7 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 } else if (snapshot.hasData) {
                   print('snapshot.data! ${snapshot.data}');
                   ServicesResponse response =
-                  ServicesResponse.fromBuffer(snapshot.data);
+                      ServicesResponse.fromBuffer(snapshot.data);
                   return Text('Response: ${response}');
                 } else {
                   return const Text('No message');
@@ -96,7 +111,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // request login
     print('request login');
     final responseLogin = await http.post(
-      Uri.parse('http://localhost:7070/auth/login'),
+      Uri.parse('http://$host:$portHttp/auth/login'),
       // Send authorization headers to the backend.
       //   const body = {
       //     email: payload.email,
@@ -104,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //   };
       body: jsonEncode(<String, String>{
         'email': 'RC_AM_pippo@gmail.com',
-        'password': '********',
+        'password': 'pippo',
       }),
     );
     if (responseLogin.statusCode != 200) {
@@ -119,10 +134,13 @@ class _MyHomePageState extends State<MyHomePage> {
     // request match auth
     print('request match auth');
     final response = await http.get(
-      Uri.parse('http://localhost:7070/auth/match-auth'),
+      Uri.parse('http://$host:$portHttp/auth/match-auth'),
       // Send authorization headers to the backend.
       headers: {
-        HttpHeaders.authorizationHeader: responseAuth.access_token,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'authorization': responseAuth.access_token,
+        //HttpHeaders.authorizationHeader: responseAuth.access_token,
       },
     );
 
@@ -132,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final responseJson = jsonDecode(response.body);
       ResponseData responseRC = ResponseData.fromJson(responseJson);
       ResponseMatchAuth responseMatchAuth =
-      ResponseMatchAuth.fromJson(responseRC.data);
+          ResponseMatchAuth.fromJson(responseRC.data);
 
       await Future.delayed(Duration(seconds: 1));
 
